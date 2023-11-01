@@ -44,6 +44,8 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 	ID3D12Device* _dev = nullptr;
 	IDXGIFactory6* _dxgiFactory = nullptr;
+	ID3D12CommandAllocator* _cmdAllocator = nullptr;
+	ID3D12GraphicsCommandList* _cmdList = nullptr;
 	IDXGISwapChain4* _swapchain = nullptr;
 
 	WNDCLASSEX w = {};
@@ -108,6 +110,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 			break;
 		}
 	}
+
+	result = _dev->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT,
+		IID_PPV_ARGS(&_cmdAllocator));
+	result = _dev->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
+		_cmdAllocator, nullptr,
+		IID_PPV_ARGS(&_cmdList));
 
 	HRESULT D3D12CreateDevice(
 		IUnknown * pAdapter,
