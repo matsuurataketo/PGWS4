@@ -126,7 +126,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 
 	ShowWindow(hwnd, SW_SHOW);
-	
+
 	while (true)
 	{
 		MSG msg = {};
