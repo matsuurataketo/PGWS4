@@ -12,6 +12,21 @@
 #pragma comment(lib,"dxgi.lib")
 using namespace std;
 
+//typedef struct DXGI_SWAP_CHAIN_DESC1
+//{
+//	UINT Width;
+//	UINT Height;
+//	DXGI_FORMAT Format;
+//	BOOL Stereo;
+//	DXGI_SAMPLE_DESC SampleDesc;
+//	DXGI_USAGE BufferUsage;
+//	UINT BufferCount;
+//	DXGI_SCALING Scaling;
+//	DXGI_SWAP_EFFECT SwapEffect;
+//	DXGI_ALPHA_MODE AlphaMode;
+//	UINT Flags;
+//}DXGI_SWAP_CHAIN_DESC1;
+
 void DebugOutputFormatString(const char* format, ...)
 {
 #ifdef _DEBUG
@@ -46,6 +61,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	IDXGIFactory6* _dxgiFactory = nullptr;
 	ID3D12CommandAllocator* _cmdAllocator = nullptr;
 	ID3D12GraphicsCommandList* _cmdList = nullptr;
+	ID3D12CommandQueue* _cmdQueue = nullptr;
 	IDXGISwapChain4* _swapchain = nullptr;
 
 	WNDCLASSEX w = {};
@@ -116,6 +132,54 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 	result = _dev->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT,
 		_cmdAllocator, nullptr,
 		IID_PPV_ARGS(&_cmdList));
+
+	D3D12_COMMAND_QUEUE_DESC cmdQueueDesc = {};
+	cmdQueueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+	cmdQueueDesc.NodeMask = 0;
+	cmdQueueDesc.Priority = D3D12_COMMAND_QUEUE_PRIORITY_NORMAL;
+	cmdQueueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
+	result = _dev->CreateCommandQueue(&cmdQueueDesc, IID_PPV_ARGS(&_cmdQueue));
+
+	DXGI_SWAP_CHAIN_DESC1 swapchainDesc{};
+	swapchainDesc.Width = window_width;
+	swapchainDesc.Height = window_height;
+	swapchainDesc.Format = DXGI_FORMAT_B8G8R8A8_UNORM;
+	swapchainDesc.Stereo = false;
+	swapchainDesc.SampleDesc.Count = 1;
+	swapchainDesc.SampleDesc.Quality = 0;
+	swapchainDesc.BufferUsage = DXGI_USAGE_BACK_BUFFER;
+	swapchainDesc.BufferCount = 2;
+	swapchainDesc.Scaling = DXGI_SCALING_STRETCH;
+	swapchainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+	swapchainDesc.AlphaMode = DXGI_ALPHA_MODE_UNSPECIFIED;
+	swapchainDesc.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
+	result = _dxgiFactory->CreateSwapChainForHwnd(
+		_cmdQueue, hwnd, 
+		&swapchainDesc, nullptr, nullptr,
+		(IDXGISwapChain1**)&_swapchain);
+
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
+	heapDesc.NodeMask = 0;
+	heapDesc.NumDescriptors = 2;
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+
+	ID3D12DescriptorHeap* rtvHeaps = nullptr;
+	result = _dev->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(&rtvHeaps));
+
+	DXGI_SWAP_CHAIN_DESC swcDesc = {};
+	result = _swapchain->GetDesc(&swcDesc);
+
+	std::vector<ID3D12Resource*>_backBuffers(swcDesc.BufferCount);
+	for (int idx = 0; idx < swcDesc.BufferCount; ++idx)
+	{
+		result = _swapchain->GetBuffer(idx, IID_PPV_ARGS(&_backBuffers[idx]));
+		D3D12_CPU_DESCRIPTOR_HANDLE handle
+			= rtvHeaps->GetGPUDescriptorHandleForHeapStart();
+		handle.ptr += idx * _dev->GetDescriptorHandleIncrementSize(
+			D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+		_dev->CreateRenderTargetView(_backBuffers[idx], nullptr, handle);
+	}
 
 	HRESULT D3D12CreateDevice(
 		IUnknown * pAdapter,
