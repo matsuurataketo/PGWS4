@@ -2,7 +2,10 @@
 #include<tchar.h>
 #include<d3d12.h>
 #include<dxgi1_6.h>
+#include<DirectXMath.h>
 #include<vector>
+#include <cstdlib> // for rand()
+#include <ctime>   // for srand() and time()
 #ifdef _DEBUG
 #include<iostream>
 #endif // _DEBUG
@@ -11,6 +14,8 @@
 #pragma comment(lib,"d3d12.lib")
 #pragma comment(lib,"dxgi.lib")
 using namespace std;
+using namespace DirectX;
+XMFLOAT3 vertices[3];
 
 //typedef struct DXGI_SWAP_CHAIN_DESC1
 //{
@@ -26,6 +31,7 @@ using namespace std;
 //	DXGI_ALPHA_MODE AlphaMode;
 //	UINT Flags;
 //}DXGI_SWAP_CHAIN_DESC1;
+
 
 #ifdef _DEBUG
 void EnableDebugLayer()
@@ -181,6 +187,32 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		&swapchainDesc, nullptr, nullptr,
 		(IDXGISwapChain1**)&_swapchain);
 
+	D3D12_HEAP_PROPERTIES heapprop = {};
+	heapprop.Type = D3D12_HEAP_TYPE_UPLOAD;
+	heapprop.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
+	heapprop.MemoryPoolPreference = D3D12_MEMORY_POOL_UNKNOWN;
+
+	D3D12_RESOURCE_DESC resdese = {};
+	resdese.Dimension = D3D12_RESOURCE_DIMENSION_BUFFER;
+	resdese.Width = sizeof(vertices);
+	resdese.Height = 1;
+	resdese.DepthOrArraySize = 1;
+	resdese.MipLevels = 1;
+	resdese.Format = DXGI_FORMAT_UNKNOWN;
+	resdese.SampleDesc.Count = 1;
+	resdese.Flags = D3D12_RESOURCE_FLAG_NONE;
+	resdese.Layout = D3D12_TEXTURE_LAYOUT_ROW_MAJOR;
+	ID3D12Resource* vertBuff = nullptr;
+
+	result = _dev->CreateCommittedResource(
+		&heapprop,
+		D3D12_HEAP_FLAG_NONE,
+		&resdese,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(&vertBuff)
+	);
+
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
 	heapDesc.NodeMask = 0;
@@ -217,6 +249,12 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 
 	ShowWindow(hwnd, SW_SHOW);
 
+	XMFLOAT3 vertices[] = {
+		{-1.0f,-1.0f,0.0f},
+		{-1.0f,+1.0f,0.0f},
+		{+1.0f,-1.0f,0.0f},
+	};
+
 	while (true)
 	{
 		MSG msg = {};
@@ -245,7 +283,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 			D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
 		_cmdList->OMSetRenderTargets(1, &rtvH, true, nullptr);
 
-		float clearColor[] = { 1.0f,1.0f,0.0f,1.0f };
+		//srand(static_cast<unsigned int>(time(nullptr)));
+		float clearColor[] = {
+	static_cast<float>(rand()) / RAND_MAX, // Red component (0 to 1)
+	static_cast<float>(rand()) / RAND_MAX, // Green component (0 to 1)
+	static_cast<float>(rand()) / RAND_MAX, // Blue component (0 to 1)
+	1.0f // Alpha component (1 means fully opaque)
+		};
 		_cmdList->ClearRenderTargetView(rtvH, clearColor, 0, nullptr);
 
 		BarrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
