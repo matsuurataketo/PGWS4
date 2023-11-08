@@ -27,6 +27,19 @@ using namespace std;
 //	UINT Flags;
 //}DXGI_SWAP_CHAIN_DESC1;
 
+#ifdef _DEBUG
+void EnableDebugLayer()
+{
+	ID3D12Debug* debugLayer = nullptr;
+	HRESULT result = D3D12GetDebugInterface(IID_PPV_ARGS(&debugLayer));
+	if (!SUCCEEDED(result))return;
+
+	debugLayer->EnableDebugLayer();
+	debugLayer->Release();
+}
+#endif // _DEBUG
+
+
 void DebugOutputFormatString(const char* format, ...)
 {
 #ifdef _DEBUG
@@ -88,6 +101,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		w.hInstance,
 		nullptr);
 
+#ifdef _DEBUG
+	EnableDebugLayer();
+#endif 
+
 	D3D_FEATURE_LEVEL levels[] =
 	{
 		D3D_FEATURE_LEVEL_12_1,
@@ -95,7 +112,13 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		D3D_FEATURE_LEVEL_11_1,
 		D3D_FEATURE_LEVEL_11_0,
 	};
+#ifdef _DEBUG
+	auto result = CreateDXGIFactory2(DXGI_CREATE_FACTORY_DEBUG, IID_PPV_ARGS(&_dxgiFactory));
+#else
 	auto result = CreateDXGIFactory1(IID_PPV_ARGS(&_dxgiFactory));
+#endif // _DEBUG
+
+	//auto result = CreateDXGIFactory1(IID_PPV_ARGS(&_dxgiFactory));
 
 	std::vector<IDXGIAdapter*>adapters;
 	IDXGIAdapter* tmpAdapter = nullptr;
@@ -188,6 +211,9 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		void** ppDevice
 	);
 
+	ID3D12Fence* _fence = nullptr;
+	UINT64 _fenceVal = 0;
+	result = _dev->CreateFence(_fenceVal, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&_fence));
 
 	ShowWindow(hwnd, SW_SHOW);
 
@@ -204,6 +230,16 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		}
 
 		auto bbldx = _swapchain->GetCurrentBackBufferIndex();
+
+		D3D12_RESOURCE_BARRIER BarrierDesc = {};
+		BarrierDesc.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		BarrierDesc.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		BarrierDesc.Transition.pResource = _backBuffers[bbldx];
+		BarrierDesc.Transition.Subresource = 0;
+		BarrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+		BarrierDesc.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		_cmdList->ResourceBarrier(1, &BarrierDesc);
+
 		auto rtvH = rtvHeaps->GetCPUDescriptorHandleForHeapStart();
 		rtvH.ptr += bbldx * _dev->GetDescriptorHandleIncrementSize(
 			D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -212,10 +248,22 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int)
 		float clearColor[] = { 1.0f,1.0f,0.0f,1.0f };
 		_cmdList->ClearRenderTargetView(rtvH, clearColor, 0, nullptr);
 
+		BarrierDesc.Transition.StateBefore = D3D12_RESOURCE_STATE_RENDER_TARGET;
+		BarrierDesc.Transition.StateAfter = D3D12_RESOURCE_STATE_PRESENT;
+		_cmdList->ResourceBarrier(1, &BarrierDesc);
+
 		_cmdList->Close();
 
 		ID3D12CommandList* cmdlists[] = { _cmdList };
 		_cmdQueue->ExecuteCommandLists(1, cmdlists);
+
+		_cmdQueue->Signal(_fence, ++_fenceVal);
+		if (_fence->GetCompletedValue() != _fenceVal){
+			auto event = CreateEvent(nullptr, false, false, nullptr);
+			_fence->SetEventOnCompletion(_fenceVal, event);
+			WaitForSingleObject(event, INFINITE);
+			CloseHandle(event);
+		}
 
 		_cmdAllocator->Reset();
 		_cmdList->Reset(_cmdAllocator, nullptr);
