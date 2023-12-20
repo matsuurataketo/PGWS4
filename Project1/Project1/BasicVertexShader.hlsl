@@ -1,9 +1,13 @@
 #include "BasicShaderHeader.hlsli"
 
-Output BasicVS(float4 pos: POSITION, float2 uv: TEXCOORD)
+cbuffer cbuff0:register(b0) {
+	matrix mat;
+}
+
+BasicType BasicVS(float4 pos: POSITION,float2 uv: TEXCOORD)
 {
-	Output output;
-    output.svpos = pos;
+	BasicType output;
+    output.svpos = mul(mat,pos);
     output.uv = uv;
 	return output;
 }
