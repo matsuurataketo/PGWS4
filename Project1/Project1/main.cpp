@@ -203,10 +203,10 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	};
 
 	Vertex vertices[] = {
-		{{-1.0f,-1.0f,0.0f},{0.0f,1.0f} },//左下
-		{{-1.0f,1.0f,0.0f} ,{0.0f,0.0f}},//左上
-		{{1.0f,-1.0f,0.0f} ,{1.0f,1.0f}},//右下
-		{{1.0f,1.0f,0.0f} ,{1.0f,0.0f}},//右上
+		{{-1.f,-1.f,0.0f},{0.0f,1.0f} },//左下
+		{{-1.f,1.f,0.0f} ,{0.0f,0.0f}},//左上
+		{{1.f,-1.f,0.0f} ,{1.0f,1.0f}},//右下
+		{{1.f,1.f,0.0f} ,{1.0f,0.0f}},//右上
 	};
 
 	//UPLOAD(確保は可能)
@@ -513,6 +513,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	XMMATRIX* mapMatrix;//マップ先を示すポインタ
 	result = constBuff->Map(0, nullptr, (void**)&mapMatrix);//マップ
 	*mapMatrix = worldMat * viewMat * projMat;
+
 	ID3D12DescriptorHeap* basicDescHeap = nullptr;
 	D3D12_DESCRIPTOR_HEAP_DESC descHeapDesc = {};
 	descHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;//シェーダから見えるように
@@ -560,7 +561,7 @@ int WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			break;
 		}
 
-		angle += 0.1f;
+		/*angle += 0.1f;*/
 		worldMat = XMMatrixRotationY(angle);
 		*mapMatrix = worldMat * viewMat * projMat;
 
